@@ -1,8 +1,8 @@
 # Praktikum EDA — Topik Dalam Data Mining
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/__REPO_SLUG__/blob/main/notebooks/praktikum01_eda.ipynb)
-[![Repo](https://img.shields.io/badge/GitHub-__REPO_SLUG_BADGE__-181717?logo=github)](https://github.com/__REPO_SLUG__)
-[![Pemeriksaan](https://github.com/__REPO_SLUG__/actions/workflows/check-submission.yml/badge.svg)](https://github.com/__REPO_SLUG__/actions/workflows/check-submission.yml)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/GIGA-TDDM/Template-Praktikum-EDA/blob/main/notebooks/praktikum01_eda.ipynb)
+[![Repo](https://img.shields.io/badge/GitHub-GIGA--TDDM%2FTemplate--Praktikum--EDA-181717?logo=github)](https://github.com/GIGA-TDDM/Template-Praktikum-EDA)
+[![Pemeriksaan](https://github.com/GIGA-TDDM/Template-Praktikum-EDA/actions/workflows/check-submission.yml/badge.svg)](https://github.com/GIGA-TDDM/Template-Praktikum-EDA/actions/workflows/check-submission.yml)
 
 **EF235161 — Topik Dalam Data Mining (P) · S-2 Teknik Informatika · ITS**
 Exploratory Data Analysis, Data Preprocessing & Experimental Validity · Sesi 120 menit
@@ -50,15 +50,15 @@ Notebook memuat dataset secara otomatis: dicoba dari folder lokal dulu, lalu dar
 Bila Anda ingin bekerja langsung di dalam klon repositori Anda sendiri di Colab, jalankan sel pertama notebook lalu:
 
 ```python
-!git clone https://github.com/__REPO_SLUG__.git
-%cd __REPO_NAME__
+!git clone https://github.com/GIGA-TDDM/Template-Praktikum-EDA.git
+%cd Template-Praktikum-EDA
 ```
 
 ### Jalur B — Lokal (Jupyter)
 
 ```bash
-git clone https://github.com/__REPO_SLUG__.git
-cd __REPO_NAME__
+git clone https://github.com/GIGA-TDDM/Template-Praktikum-EDA.git
+cd Template-Praktikum-EDA
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 jupyter lab notebooks/praktikum01_eda.ipynb
