@@ -1,0 +1,48 @@
+name: Inisialisasi repositori
+
+# Berjalan sekali saat repositori pertama kali dibuat dari template.
+# Mengganti placeholder __REPO_SLUG__ dan __REPO_NAME__ dengan nama
+# repositori yang sebenarnya, lalu commit hasilnya.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  init:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ganti placeholder
+        id: ganti
+        run: |
+          set -euo pipefail
+          if ! grep -rl '__REPO_SLUG__\|__REPO_NAME__\|__REPO_SLUG_BADGE__' \
+               --include='*.md' --include='*.ipynb' . > /tmp/berkas.txt; then
+            echo "Tidak ada placeholder tersisa."
+            echo "berubah=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          SLUG='${{ github.repository }}'
+          NAME='${{ github.event.repository.name }}'
+          BADGE="$(printf '%s' "$SLUG" | sed 's/-/--/g; s/_/__/g; s#/#%2F#g')"
+          while IFS= read -r f; do
+            sed -i "s#__REPO_SLUG_BADGE__#${BADGE}#g; s#__REPO_SLUG__#${SLUG}#g; s#__REPO_NAME__#${NAME}#g" "$f"
+            echo "diperbarui: $f"
+          done < /tmp/berkas.txt
+          echo "berubah=true" >> "$GITHUB_OUTPUT"
+
+      - name: Commit
+        if: steps.ganti.outputs.berubah == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --staged --quiet || git commit -m 'chore: sesuaikan tautan Colab dan GitHub dengan repositori ini [skip ci]'
+          git push
