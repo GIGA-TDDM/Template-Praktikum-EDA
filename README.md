@@ -123,8 +123,12 @@ Yang diperiksa:
 Menjalankan pemeriksa di komputer sendiri sebelum push:
 
 ```bash
-python tools/check_submission.py
+python tools/check_submission.py              # seluruh pemeriksaan
+python tools/check_submission.py --daftar     # daftar kunci pemeriksaan
+python tools/check_submission.py --only leakage   # satu pemeriksaan saja
 ```
+
+Pemeriksa hanya memakai pustaka standar Python, jadi ia jalan tanpa instalasi apa pun.
 
 ---
 

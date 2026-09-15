@@ -105,30 +105,36 @@ def cek_tanpa_error(nb) -> None:
 
 
 # ------------------------------------------------------------------------- 4-7
-def cek_validitas(nb) -> None:
-    kode = "\n".join("".join(c.get("source", [])) for c in sel_kode(nb))
+def _kode(nb) -> str:
+    return "\n".join("".join(c.get("source", [])) for c in sel_kode(nb))
 
-    drop = re.search(r"DROP\s*=\s*\[[^\]]*churn_next_month_confirmed", kode)
+
+def cek_leakage(nb) -> None:
+    ada = re.search(r"DROP\s*=\s*\[[^\]]*churn_next_month_confirmed", _kode(nb))
     cek(
-        bool(drop),
+        bool(ada),
         "Fitur leakage dikeluarkan dari model final",
         "'churn_next_month_confirmed' harus ada di daftar DROP sebelum split. "
         "Memakainya di blok demonstrasi tidak masalah; memakainya di model yang "
         "dilaporkan sebagai hasil tidak boleh."
-        if not drop
+        if not ada
         else "",
     )
 
-    strat = re.search(r"train_test_split\s*\([^)]*stratify\s*=", kode, re.DOTALL)
+
+def cek_stratify(nb) -> None:
+    ada = re.search(r"train_test_split\s*\([^)]*stratify\s*=", _kode(nb), re.DOTALL)
     cek(
-        bool(strat),
+        bool(ada),
         "train_test_split memakai stratify",
         "Data tidak seimbang; split tanpa stratify membuat proporsi kelas bergeser."
-        if not strat
+        if not ada
         else "",
     )
 
-    bocor = re.findall(r"\.fit(?:_transform)?\s*\(\s*X_test", kode)
+
+def cek_testset(nb) -> None:
+    bocor = re.findall(r"\.fit(?:_transform)?\s*\(\s*X_test", _kode(nb))
     cek(
         not bocor,
         "Tidak ada fit/fit_transform pada X_test",
@@ -138,19 +144,23 @@ def cek_validitas(nb) -> None:
         else "",
     )
 
-    seed = re.search(r"RANDOM_STATE\s*=\s*\d+", kode)
-    cek(bool(seed), "RANDOM_STATE ditetapkan", "" if seed else "Hasil tidak dapat direproduksi tanpa seed.")
+
+def cek_seed(nb) -> None:
+    ada = re.search(r"RANDOM_STATE\s*=\s*\d+", _kode(nb))
+    cek(bool(ada), "RANDOM_STATE ditetapkan", "" if ada else "Hasil tidak dapat direproduksi tanpa seed.")
 
 
 # ------------------------------------------------------------------------- 8-9
-def cek_laporan(path: Path) -> None:
-    teks = baca(path)
+def _teks_laporan(path: Path) -> str | None:
+    return baca(path)
+
+
+def cek_temuan(path: Path) -> None:
+    teks = _teks_laporan(path)
     if teks is None:
-        cek(False, "Lima temuan EDA terisi", f"{path} tidak ditemukan")
-        cek(False, "Audit leakage terisi", f"{path} tidak ditemukan")
+        cek(False, "Minimal 5 temuan EDA lengkap (Temuan/Bukti/Implikasi)", f"{path} tidak ditemukan")
         return
 
-    # -- temuan
     blok = re.split(r"^###\s+Temuan\s+\d+\s*$", teks, flags=re.MULTILINE)[1:]
     lengkap, catatan = 0, []
     for n, b in enumerate(blok, 1):
@@ -170,7 +180,12 @@ def cek_laporan(path: Path) -> None:
         f"baru {lengkap} dari 5 lengkap. " + "; ".join(catatan[:3]) if lengkap < 5 else "",
     )
 
-    # -- audit leakage
+
+def cek_audit(path: Path) -> None:
+    teks = _teks_laporan(path)
+    if teks is None:
+        cek(False, "Audit leakage dataset penelitian terisi", f"{path} tidak ditemukan")
+        return
     m = re.search(r"##\s*Bagian 3(.*?)(?=^##\s|\Z)", teks, re.DOTALL | re.MULTILINE)
     isi = ""
     if m:
@@ -190,24 +205,85 @@ def cek_laporan(path: Path) -> None:
 
 
 # --------------------------------------------------------------------------- #
+PEMERIKSAAN = {
+    "identitas":  "identitas di README",
+    "notebook":   "notebook valid",
+    "dijalankan": "notebook sudah dijalankan",
+    "error":      "tidak ada sel error",
+    "leakage":    "fitur leakage dikeluarkan dari model final",
+    "stratify":   "split memakai stratify",
+    "testset":    "test set tidak dipakai untuk fit",
+    "seed":       "RANDOM_STATE ditetapkan",
+    "temuan":     "5 temuan EDA lengkap",
+    "audit":      "audit leakage terisi",
+}
+
+
 def main() -> int:
-    p = argparse.ArgumentParser(description="Pemeriksa kelengkapan Praktikum EDA")
+    p = argparse.ArgumentParser(
+        description="Pemeriksa kelengkapan Praktikum EDA",
+        epilog="Kunci --only: " + ", ".join(PEMERIKSAAN),
+    )
     p.add_argument("--notebook", default="notebooks/praktikum01_eda.ipynb")
     p.add_argument("--laporan", default="laporan/LAPORAN.md")
     p.add_argument("--readme", default="README.md")
+    p.add_argument(
+        "--only",
+        metavar="KUNCI",
+        help="jalankan satu pemeriksaan saja (untuk autograder per-tes)",
+    )
+    p.add_argument("--daftar", action="store_true", help="tampilkan semua kunci --only lalu keluar")
     a = p.parse_args()
 
-    nb_path = ROOT / a.notebook
-    cek_identitas(baca(ROOT / a.readme))
-    nb = muat_notebook(nb_path)
+    if a.daftar:
+        for k, v in PEMERIKSAAN.items():
+            print(f"{k:12s} {v}")
+        return 0
+
+    if a.only and a.only not in PEMERIKSAAN:
+        print(f"Kunci '{a.only}' tidak dikenal. Pilihan: {', '.join(PEMERIKSAAN)}")
+        return 2
+
+    pilih = (lambda k: a.only in (None, k))
+
+    butuh_nb = any(pilih(k) for k in ("notebook", "dijalankan", "error", "leakage", "stratify", "testset", "seed"))
+
+    if pilih("identitas"):
+        cek_identitas(baca(ROOT / a.readme))
+
+    nb = None
+    if butuh_nb:
+        nb = muat_notebook(ROOT / a.notebook)
+        if a.only and a.only != "notebook" and nb is not None:
+            hasil.pop()  # hasil "notebook valid" hanya relevan pada mode penuh
     if nb is not None:
-        cek_dijalankan(nb)
-        cek_tanpa_error(nb)
-        cek_validitas(nb)
-    cek_laporan(ROOT / a.laporan)
+        if pilih("dijalankan"):
+            cek_dijalankan(nb)
+        if pilih("error"):
+            cek_tanpa_error(nb)
+        if pilih("leakage"):
+            cek_leakage(nb)
+        if pilih("stratify"):
+            cek_stratify(nb)
+        if pilih("testset"):
+            cek_testset(nb)
+        if pilih("seed"):
+            cek_seed(nb)
+
+    if pilih("temuan"):
+        cek_temuan(ROOT / a.laporan)
+    if pilih("audit"):
+        cek_audit(ROOT / a.laporan)
 
     lolos = sum(1 for ok, _, _ in hasil if ok)
     total = len(hasil)
+
+    if a.only:
+        ok, judul, pesan = hasil[-1] if hasil else (False, a.only, "pemeriksaan tidak berjalan")
+        print(f"{'LOLOS' if ok else 'GAGAL'} — {judul}")
+        if pesan:
+            print(f"  -> {pesan}")
+        return 0 if ok else 1
 
     baris = ["", f"PEMERIKSAAN KELENGKAPAN — {lolos}/{total} lolos", "=" * 58]
     for ok, judul, pesan in hasil:
@@ -221,8 +297,7 @@ def main() -> int:
         if lolos == total
         else "Perbaiki butir yang GAGAL lalu push ulang."
     )
-    keluaran = "\n".join(baris)
-    print(keluaran)
+    print("\n".join(baris))
 
     ringkasan = os.environ.get("GITHUB_STEP_SUMMARY")
     if ringkasan:
