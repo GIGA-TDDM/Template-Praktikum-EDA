@@ -21,7 +21,11 @@ import re
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+# Akar repositori mahasiswa. Default: direktori kerja saat ini, sehingga skrip
+# tetap benar baik ketika dijalankan dari dalam repositori
+# (python tools/check_submission.py) maupun ketika salinan tepercayanya
+# dijalankan dari luar (autograder: python "$CLASSROOM50_BUNDLE_DIR/check_submission.py").
+ROOT = Path.cwd()
 PLACEHOLDER = re.compile(r"_\(isi\)_|\(isi\)|^\s*$|^-+$|^_+$", re.IGNORECASE)
 
 hasil: list[tuple[bool, str, str]] = []
@@ -228,12 +232,21 @@ def main() -> int:
     p.add_argument("--laporan", default="laporan/LAPORAN.md")
     p.add_argument("--readme", default="README.md")
     p.add_argument(
+        "--root",
+        metavar="DIR",
+        help="akar repositori yang diperiksa (default: direktori kerja saat ini)",
+    )
+    p.add_argument(
         "--only",
         metavar="KUNCI",
         help="jalankan satu pemeriksaan saja (untuk autograder per-tes)",
     )
     p.add_argument("--daftar", action="store_true", help="tampilkan semua kunci --only lalu keluar")
     a = p.parse_args()
+
+    global ROOT
+    if a.root:
+        ROOT = Path(a.root).resolve()
 
     if a.daftar:
         for k, v in PEMERIKSAAN.items():
@@ -280,7 +293,7 @@ def main() -> int:
 
     if a.only:
         ok, judul, pesan = hasil[-1] if hasil else (False, a.only, "pemeriksaan tidak berjalan")
-        print(f"{'LOLOS' if ok else 'GAGAL'} — {judul}")
+        print(f"{'PEMERIKSAAN_LOLOS' if ok else 'PEMERIKSAAN_GAGAL'} — {judul}")
         if pesan:
             print(f"  -> {pesan}")
         return 0 if ok else 1
